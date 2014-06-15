@@ -2475,8 +2475,10 @@ public:
   */
   void check_limit_rows_examined()
   {
-    if (++accessed_rows_and_keys > lex->limit_rows_examined_cnt)
+    ++accessed_rows_and_keys;  
+    if (lex && accessed_rows_and_keys > lex->limit_rows_examined_cnt) {
       killed= ABORT_QUERY;
+    }
   }
 
   USER_CONN *user_connect;
