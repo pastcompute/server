@@ -42,8 +42,8 @@ const char *myisam_recover_names[] =
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
-const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
-                                           "nulls_ignored", NullS};
+const char *myisam_stats_method_names[] = {"NULLS_UNEQUAL", "NULLS_EQUAL",
+                                           "NULLS_IGNORED", NullS};
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
   myisam_stats_method_names, NULL};
@@ -66,8 +66,7 @@ static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size, myisam_max_temp_length,
 
 static MYSQL_SYSVAR_SET(recover_options, myisam_recover_options,
   PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_READONLY,
-  "Syntax: myisam-recover-options[=option[,option...]], where option can be "
-  "DEFAULT, BACKUP, BACKUP_ALL, FORCE, QUICK, or OFF",
+  "Specifies how corrupted tables should be automatically repaired",
   NULL, NULL, 1, &myisam_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
@@ -823,7 +822,15 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   my_errno= 0;
+
+  /* Count statistics of usage for newly open normal files */
+  if (file->s->reopen == 1 && ! (test_if_locked & HA_OPEN_TMP_TABLE))
+  {
+    if (file->s->delay_key_write)
+      feature_files_opened_with_delayed_keys++;
+  }
   goto end;
+
  err:
   this->close();
  end:
@@ -1080,7 +1087,6 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias.c_ptr();
-  param.tmpfile_createflag= O_RDWR | O_TRUNC | O_EXCL;
   param.using_global_keycache = 1;
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
