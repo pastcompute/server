@@ -211,7 +211,13 @@ LEX_CUSTRING build_frm_image(THD *thd, const char *table,
   filepos= frm.length;
   frm.length+= FRM_FORMINFO_SIZE;               // forminfo
   frm.length+= packed_fields_length(create_fields);
-  
+
+  if (frm.length > FRM_MAX_SIZE)
+  {
+    my_error(ER_TABLE_DEFINITION_TOO_BIG, MYF(0), table);
+    DBUG_RETURN(frm);
+  }
+
   frm_ptr= (uchar*) my_malloc(frm.length, MYF(MY_WME | MY_ZEROFILL |
                                               MY_THREAD_SPECIFIC));
   if (!frm_ptr)
@@ -354,8 +360,7 @@ int rea_create_table(THD *thd, LEX_CUSTRING *frm,
 {
   DBUG_ENTER("rea_create_table");
 
-  // TODO don't write frm for temp tables
-  if (no_ha_create_table || create_info->tmp_table())
+  if (no_ha_create_table)
   {
     if (writefrm(path, db, table_name, true, frm->str, frm->length))
       goto err_frm;
